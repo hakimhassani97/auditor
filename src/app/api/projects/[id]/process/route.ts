@@ -12,7 +12,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
  if(process.env.ENABLE_EXTERNAL_PROCESSING!=="true")return NextResponse.json({error:"External processing is disabled. Set ENABLE_EXTERNAL_PROCESSING=true after reviewing the privacy notice."},{status:403});
  const body=await req.json().catch(()=>({})), evidenceId=String(body.evidenceId||""); const evidence=db.prepare("SELECT * FROM evidence WHERE id=? AND project_id=?").get(evidenceId,id) as any;
  if(!evidence||evidence.stored_path.startsWith("/demo/"))return NextResponse.json({error:"Select a real uploaded file; demo fixtures are not sent externally."},{status:400});
- const jobId=startLiveJob(id,evidenceId);
+  const jobId=startLiveJob(id,evidenceId);db.prepare("UPDATE evidence SET status='running' WHERE id=?").run(evidenceId);
  const model=process.env.META_MODEL||"muse-spark-1.3"; const base=(process.env.META_API_BASE_URL||"https://api.meta.ai/v1").replace(/\/$/,"");
  const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),60000);
  try {

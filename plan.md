@@ -14,7 +14,13 @@ The core browser journey must be usable from beginning to end:
 4. Review an evidence-linked dossier. Show proposed equipment identity, manufacturer/model candidates, extracted technical properties, plan detections, and building observations as suggestions with confidence/uncertainty and source references. Make conflicts and missing information visible. Support accept, edit, reject, and merge where relevant.
 5. View a clear project summary and audit-preparation output that separates confirmed facts, user edits, model suggestions, external-source information, assumptions, and missing data. Do not claim the output is a certified or legally complete energy audit unless the applicable methodology and required inputs have been explicitly established and implemented.
 
-Keep navigation focused (for example: Projects, Evidence, Review, Report). Make the next useful action obvious, support laptop and narrow-screen layouts, and communicate state with text/icons as well as color. Provide accessible labels, keyboard operation, and readable contrast.
+Keep navigation focused (for example: Projects, Evidence, Review, Report). The Projects navigation item must be interactive and open a useful project list with project summaries/counts and clear project selection/creation actions; no visible navigation control should be a no-op. Make the next useful action obvious, support laptop and narrow-screen layouts, and communicate state with text/icons as well as color. Provide accessible labels, keyboard operation, and readable contrast.
+
+### Evidence organization and feedback
+
+- Let auditors regroup uploaded evidence with intuitive drag-and-drop collections/groups (for example, multiple photos and nameplates for one piece of equipment, separate equipment items, floor plans, and exterior/building photos). Preserve source files and labels, make group membership editable, and provide an accessible non-drag alternative such as a “Move to group” control.
+- Show useful previews and source thumbnails for each finding in review, not only filenames; allow the auditor to open or inspect the linked source image/document and relevant page/region.
+- Provide visible, per-task/per-file loading and completion states for uploads, processing, research, and report generation. Communicate what is waiting or running, when it finishes, and actionable errors/retry options. Persist progress so users can understand failures and resume without re-uploading.
 
 ## Automated evidence and AI capabilities
 
@@ -42,7 +48,9 @@ Use React with Next.js and TypeScript for the web application. Use SQLite with m
 
 Model at minimum projects, uploaded files/pages, processing jobs/steps, equipment candidates, extracted facts, evidence/source references, plan detections, review decisions, and report outputs. Ensure failures or deletion do not leave misleading orphaned records. Provide project/file deletion behavior and document backup/restore for both SQLite and uploads.
 
-Keep external integrations behind adapters (Meta model API and web search). Configure secrets and service settings only through environment variables. Include `.env.example` with safe placeholders and clear setup guidance; ensure `.env` and secrets are ignored by version control. The app must remain startable without a real API key, show an actionable “configure API key” state for live AI processing, and include a clearly labeled seeded/demo project or deterministic fixture mode so the UI can be tested in a browser without pretending fixture results are live AI results.
+Keep external integrations behind adapters (Meta model API and web search). Configure secrets and service settings only through environment variables. Include `.env.example` with safe placeholders and clear setup guidance; ensure `.env` and secrets are ignored by version control. The app must remain startable without a real API key and show an actionable “configure API key” state for live AI processing.
+
+Demo fixtures are examples/hints that explain what useful evidence can look like; they must not be treated as evidence belonging to an auditor's real project, included in a real dossier/report, sent for live processing, or confused with user uploads. Present examples in a clearly separate, optional “Example evidence”/help area or equivalent. Keep fixtures explicitly identified as illustrative; do not seed them into the ordinary active-project workflow as usable evidence.
 
 Treat uploaded building documents and images as potentially sensitive. Explain which content is sent to configured external services, send only what is needed, do not log API keys or unnecessary file contents, and provide a way to delete a project and its stored evidence. Do not send evidence to external services before the user has configured and knowingly enabled those integrations.
 
@@ -58,6 +66,9 @@ The goal is reached only when all of the following are true:
 
 - The application installs and starts using documented local instructions and Docker Compose; the app and persistent SQLite/upload storage survive container restarts.
 - A developer can open the app in a browser without a Meta API key and explore a clearly labeled demo project; adding a key later enables live processing without code changes.
+- Demo fixture images are isolated examples only and never enter real project evidence, processing, findings, or reports.
+- The Projects sidebar control opens a functional project list; auditors can group/regroup evidence by equipment or evidence type using drag-and-drop and an accessible alternative.
+- Review findings display linked evidence thumbnails/previews, and asynchronous operations show clear running, completion, failure, and retry states.
 - A user can create a project and batch-upload supported images/PDFs, including files labeled `eq_11`-style, with previews and understandable status/error feedback.
 - The workflow produces structured, evidence-linked equipment and document findings and an interactive plan review experience for supported files; unsupported or uncertain input is clearly reported rather than fabricated.
 - Users can accept, edit, reject, or resolve findings, and changes/provenance remain visible in the project summary and generated output.

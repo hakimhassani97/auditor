@@ -12,7 +12,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open <http://localhost:3000>. The demo project is available without an API key or network access. To create a production build, run `npm.cmd run build` then `npm.cmd start`. On PowerShell, use `npm.cmd` if local execution policy blocks `npm.ps1`.
+Open <http://localhost:3000>. Example evidence is shown as an optional visual guide only; it is never added to a project or processed. Create a project to start. To create a production build, run `npm.cmd run build` then `npm.cmd start`. On PowerShell, use `npm.cmd` if local execution policy blocks `npm.ps1`.
 
 ## Docker
 
@@ -34,7 +34,7 @@ To enable product research, also set `ENABLE_WEB_SEARCH=true`. After accepting a
 
 Supported uploads: JPEG, PNG, WebP, GIF and PDF, up to `MAX_UPLOAD_MB` (default 25 MB) each. Batch uploads preserve `eq_*` filename labels as hints. Local classification is based on MIME type and filename and is explicitly not presented as model extraction. PDFs are rendered page-by-page in the browser with PDF.js so normalized overlays share the actual page canvas bounds. For PDF visual handling, Meta documents up to 50 retained page images and text extraction from the first 100 pages; the UI preserves returned page number and normalized region, flags scale as unverified, and makes detections editable. Fixture plan overlays are explicitly illustrative. For live analysis, the chosen evidence file is sent to Meta's configured endpoint only after an explicit user action and server opt-in. Do not upload documents unless you are authorized to process them externally.
 
-The initial architecture assumes one local app instance and one local filesystem volume; it is not a distributed or multi-user deployment. Uploaded data is stored outside SQLite. Delete projects from the app to remove their uploaded files and associated records. The seeded demo project is protected from deletion.
+The initial architecture assumes one local app instance and one local filesystem volume; it is not a distributed or multi-user deployment. Uploaded data is stored outside SQLite. Delete projects from the app to remove their uploaded files and associated records. Previously seeded demo rows are hidden from active project lists and inaccessible through project APIs; new databases are not seeded with fixture evidence.
 
 ### Backup and restore
 
