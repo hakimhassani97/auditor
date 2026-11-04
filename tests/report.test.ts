@@ -30,6 +30,10 @@ test("report findings and plan paragraphs carry only linked/grouped evidence and
   assert.deepEqual(report.confirmed[0].supportingEvidence.map((e:any)=>e.filename).sort(),["heat-pump-nameplate.jpg","heat-pump-overview.jpg"]);
   assert.deepEqual(report.suggestions[0].supportingEvidence.map((e:any)=>e.filename),["unrelated-window.jpg"]);
   assert.deepEqual(report.planDetections[0].supportingEvidence.map((e:any)=>e.filename),["unrelated-window.jpg"]);
-  assert.equal(report.confirmed[0].supportingEvidence[0].groupName,"Heat pump 1");
+   assert.equal(report.confirmed[0].supportingEvidence[0].groupName,"Heat pump 1");
+   assert.equal(report.confirmed[0].reviewState,"Confirmed");
+   assert.equal(report.suggestions[0].reviewState,"Needs review");
+   assert.equal("origin" in report.confirmed[0],false);
+   assert.equal("origin" in report.planDetections[0],false);
  }finally{db.prepare("DELETE FROM projects WHERE id=?").run(projectId)}
 });
