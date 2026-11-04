@@ -1,0 +1,2 @@
+.plan-canvas.pdf-plan{aspect-ratio:1/1.414;background:#e9efed}.pdf-page-stage{position:absolute;inset:0;background:#fff}.pdf-page-stage canvas{display:block}.pdf-state{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,255,255,.88);font-size:10px;color:#71858d;pointer-events:none}
+.source-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:8px}.source-actions .outline-button,.source-actions .reject-button{height:28px;font-size:9px}

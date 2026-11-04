@@ -1,0 +1,12 @@
+import { NextResponse } from "next/server";
+import { db, projectDetail } from "@/lib/db";
+import { randomUUID } from "node:crypto";
+export const runtime="nodejs";
+export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){
+ const {id}=await params, p=projectDetail(id); if(!p)return NextResponse.json({error:"Project not found"},{status:404});
+ const confirmed=p.findings.filter((f:any)=>["accepted","edited"].includes(f.state)), suggested=p.findings.filter((f:any)=>f.state==="suggested"), rejected=p.findings.filter((f:any)=>f.state==="rejected");
+ const sources=db.prepare("SELECT id,title,url,publisher_type,excerpt,retrieved_at,review_state FROM external_sources WHERE project_id=? ORDER BY retrieved_at DESC").all(id);
+ const content={title:`Audit preparation · ${p.name}`,address:p.address||"Not provided",generatedAt:new Date().toISOString(),status:"Preparation draft — not a certified or legally complete energy audit.",confirmed:confirmed.map((f:any)=>({title:f.edited_title||f.title,detail:f.edited_detail||f.detail,source:f.filename||"No linked evidence",origin:f.origin})),suggestions:suggested.map((f:any)=>({title:f.title,detail:f.detail,source:f.filename||"No linked evidence",confidence:f.confidence,origin:f.origin})),planDetections:p.detections.map((d:any)=>({label:d.label,source:d.filename,page:d.page_number,region:{x:d.x,y:d.y,width:d.width,height:d.height,coordinateSystem:"normalized 0–1; top-left origin"},confidence:d.confidence,origin:d.origin,state:d.state,scaleVerified:false})),rejectedCount:rejected.length,missing:[...(!p.address?["Building address"]:[]),...(p.evidence.length?["Energy bills and operating schedules","Verified equipment ratings and operating condition","Applicable audit scope and methodology"]:["Evidence files","Energy bills and operating schedules","Verified equipment ratings and operating condition","Applicable audit scope and methodology"])],externalSources:sources,externalResearch:sources.length?"Cited external product sources are listed below. Treat them as research candidates pending review.":"Unavailable: configure Meta web search to retrieve cited product sources.",calculations:"Formal French/EU compliance calculations are not implemented: no methodology/version or required inputs were specified."};
+ db.prepare("INSERT INTO reports(id,project_id,content,created_at) VALUES(?,?,?,?)").run(randomUUID(),id,JSON.stringify(content,null,2),content.generatedAt);
+ return NextResponse.json(content);
+}

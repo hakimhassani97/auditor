@@ -1,0 +1,12 @@
+services:
+  auditor:
+    command: sh -c "npm install && npm run dev"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - .:/app
+      - dev_node_modules:/app/node_modules
+      - dev_next:/app/.next
+volumes:
+  dev_node_modules:
+  dev_next:

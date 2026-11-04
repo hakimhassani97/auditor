@@ -1,0 +1,6 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import fs from "node:fs/promises";
+import path from "node:path";
+export const runtime="nodejs";
+export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){const {id}=await params;const row=db.prepare("SELECT project_id,stored_path,mime,filename FROM evidence WHERE id=?").get(id) as any;if(!row)return NextResponse.json({error:"Not found"},{status:404});if(row.stored_path.startsWith("/demo/"))return NextResponse.json({error:"Demo assets are served statically."},{status:404});const root=path.resolve(process.env.UPLOAD_DIR||"./storage/uploads");const file=path.resolve(root,row.project_id,row.stored_path);if(!file.startsWith(root+path.sep))return NextResponse.json({error:"Invalid file path"},{status:400});try{const data=await fs.readFile(file);return new NextResponse(data,{headers:{"Content-Type":row.mime,"Content-Length":String(data.length),"Content-Disposition":`inline; filename*=UTF-8''${encodeURIComponent(row.filename)}`,"X-Content-Type-Options":"nosniff","Cache-Control":"private, max-age=3600"}})}catch{return NextResponse.json({error:"Evidence file is missing from local storage."},{status:410})}}

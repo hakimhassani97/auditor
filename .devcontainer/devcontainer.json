@@ -1,0 +1,10 @@
+{
+  "name": "Atelier Energie",
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.yml"],
+  "service": "auditor",
+  "workspaceFolder": "/app",
+  "forwardPorts": [3000],
+  "portsAttributes": {"3000": {"label": "Audit workspace", "onAutoForward": "openBrowser"}},
+  "remoteUser": "node",
+  "postCreateCommand": "npm ci"
+}
