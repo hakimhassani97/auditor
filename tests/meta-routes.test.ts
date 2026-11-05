@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { db } from "../src/lib/db";
-import { POST as processEvidence } from "../src/app/api/projects/[id]/process/route";
+import { POST as processEvidence, buildEvidencePrompt } from "../src/app/api/projects/[id]/process/route";
 import { POST as researchFinding } from "../src/app/api/projects/[id]/research/route";
 
 const model="muse-spark-1.3";
@@ -21,14 +21,19 @@ async function withMeta(mock:typeof fetch,fn:()=>Promise<void>){const oldFetch=g
 function metaMock(responses:(url:string,init?:RequestInit)=>Response|Promise<Response>){return (async(input:string|URL|Request,init?:RequestInit)=>{const url=String(input);if(url.endsWith("/models"))return response({data:[{id:model}]});if(url.endsWith(`/models/${model}`))return response({id:model,modalities:["text","image","pdf"],capabilities:{structured_output:true,web_search:true}});return responses(url,init)}) as typeof fetch}
 const analysis={category:"plan",findings:[{title:"Workshop zone",detail:"Label visible; confirm during site visit.",kind:"plan",confidence:.82}],detections:[{pageNumber:1,label:"Workshop",x:.12,y:.2,width:.4,height:.5,confidence:.8}]};
 
+test("evidence-aware prompt uses auditor/group hints without claiming unseen evidence",()=>{
+ const prompt=buildEvidencePrompt({filename:"eq_11-plate.png",label:"eq_11",category:"nameplate"},[{filename:"eq_11-overview.jpg",label:"eq_11",category:"equipment"}]);
+ assert.match(prompt,/cross-check every proposed claim/);assert.match(prompt,/eq_11-plate\.png/);assert.match(prompt,/eq_11-overview\.jpg/);assert.match(prompt,/metadata only/);assert.match(prompt,/not private chain-of-thought/i);assert.match(prompt,/conflicts or missing\/illegible critical values/);
+});
+
 test("analysis endpoint sends selected evidence with strict schema and persists findings/overlays",async()=>{
- const f=await fixture("image");let requestBody:any;
+  const f=await fixture("image");let requestBody:any;
  await withMeta(metaMock((url,init)=>{assert.match(url,/\/responses$/);requestBody=JSON.parse(String(init?.body));return response(output(analysis))}),async()=>{
   const res=await processEvidence(new Request("http://local",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({evidenceId:f.evidenceId})}),{params:Promise.resolve({id:f.id})});const body=await res.json();assert.equal(res.status,200);assert.equal(body.count,1);assert.equal(body.detections,1);
  });
- assert.equal(requestBody.text.format.type,"json_schema");assert.equal(requestBody.text.format.strict,true);assert.ok(requestBody.input[0].content.some((x:any)=>x.type==="input_image"&&x.image_url.includes("TU9DS19FVklERU5DRV9CWVRFUw==")));
- const finding=db.prepare("SELECT title,origin,state,source_ref FROM findings WHERE evidence_id=? AND origin='meta_suggestion'").get(f.evidenceId) as any;const detection=db.prepare("SELECT label,x,y,width,height,origin FROM plan_detections WHERE evidence_id=? AND origin='meta_suggestion'").get(f.evidenceId) as any;const job=db.prepare("SELECT status,attempt_count FROM jobs WHERE evidence_id=? ORDER BY created_at DESC LIMIT 1").get(f.evidenceId) as any;
- assert.equal(finding.title,"Workshop zone");assert.equal(finding.origin,"meta_suggestion");assert.equal(finding.state,"suggested");assert.match(finding.source_ref,/muse-spark-1.3/);assert.deepEqual(Object.values(detection),["Workshop",.12,.2,.4,.5,"meta_suggestion"]);assert.equal(job.status,"complete");assert.equal(job.attempt_count,1);await f.cleanup();
+  assert.equal(requestBody.text.format.type,"json_schema");assert.equal(requestBody.text.format.strict,true);assert.deepEqual(requestBody.reasoning,{effort:"medium"});assert.ok(requestBody.input[0].content.some((x:any)=>x.type==="input_image"&&x.image_url.includes("TU9DS19FVklERU5DRV9CWVRFUw==")));
+  const finding=db.prepare("SELECT title,origin,state,source_ref FROM findings WHERE evidence_id=? AND origin='meta_suggestion'").get(f.evidenceId) as any;const detection=db.prepare("SELECT label,x,y,width,height,origin FROM plan_detections WHERE evidence_id=? AND origin='meta_suggestion'").get(f.evidenceId) as any;const job=db.prepare("SELECT status,attempt_count FROM jobs WHERE evidence_id=? ORDER BY created_at DESC LIMIT 1").get(f.evidenceId) as any;
+  assert.equal(finding.title,"Workshop zone");assert.equal(finding.origin,"meta_suggestion");assert.equal(finding.state,"suggested");assert.match(finding.source_ref,/muse-spark-1.3.*reasoning medium/);assert.deepEqual(Object.values(detection),["Workshop",.12,.2,.4,.5,"meta_suggestion"]);assert.equal(job.status,"complete");assert.equal(job.attempt_count,1);await f.cleanup();
 });
 
 test("analysis endpoint retries 429 and persists failed attempt before subsequent retry",async()=>{

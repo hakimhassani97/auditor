@@ -6,7 +6,13 @@ export const analysisSchema=z.object({category:z.enum(["equipment","nameplate","
 
 const number={type:"number",minimum:0,maximum:1};
 export const analysisJsonSchema={type:"object",additionalProperties:false,properties:{category:{type:"string",enum:["equipment","nameplate","technical_document","plan","building","unknown"]},findings:{type:"array",items:{type:"object",additionalProperties:false,properties:{title:{type:"string",minLength:1,maxLength:160},detail:{type:"string",maxLength:1200},kind:{type:"string",enum:["equipment","technical","plan","observation"]},confidence:number},required:["title","detail","kind","confidence"]},maxItems:12},detections:{type:"array",items:{type:"object",additionalProperties:false,properties:{pageNumber:{type:"integer",minimum:1,maximum:100},label:{type:"string",minLength:1,maxLength:120},x:number,y:number,width:{type:"number",exclusiveMinimum:0,maximum:1},height:{type:"number",exclusiveMinimum:0,maximum:1},confidence:number},required:["pageNumber","label","x","y","width","height","confidence"]},maxItems:24}},required:["category","findings","detections"]};
-export function buildAnalysisRequest(model:string,content:any[]){return {model,input:[{role:"user",content}],text:{format:{type:"json_schema",name:"building_evidence_analysis",strict:true,schema:analysisJsonSchema}},max_output_tokens:3500}}
+export type ReasoningEffort="low"|"medium"|"high"|"max";
+export function resolveReasoningEffort(model:string,configured=process.env.META_REASONING_EFFORT||"medium"):ReasoningEffort{
+ if(!["low","medium","high","max"].includes(configured))throw new MetaProviderError("META_REASONING_EFFORT must be low, medium, high, or max.",false,400);
+ if(configured==="max"&&!/^(?:muse-spark-1\.3|muse-wonder-1\.0)$/.test(model))throw new MetaProviderError(`Maximum reasoning is documented only for muse-spark-1.3 and muse-wonder-1.0; '${model}' is not eligible.`,false,400);
+ return configured as ReasoningEffort;
+}
+export function buildAnalysisRequest(model:string,content:any[],effort:ReasoningEffort="medium"){return {model,input:[{role:"user",content}],reasoning:{effort},text:{format:{type:"json_schema",name:"building_evidence_analysis",strict:true,schema:analysisJsonSchema}},max_output_tokens:5000}}
 
 export class MetaProviderError extends Error{constructor(message:string,readonly retryable:boolean,readonly status?:number,readonly incompleteReason?:string){super(message);this.name="MetaProviderError"}}
 type Fetcher=typeof fetch;

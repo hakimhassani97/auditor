@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { classify, stages, startLiveJob, updateLiveJob } from "../src/lib/workflow";
 import { z } from "zod";
-import {analysisSchema,buildAnalysisRequest,extractOutputText,parseAnalysis,requestWithRetry,verifyModel,MetaProviderError} from "../src/lib/meta-provider";
+import {analysisSchema,buildAnalysisRequest,extractOutputText,parseAnalysis,requestWithRetry,resolveReasoningEffort,verifyModel,MetaProviderError} from "../src/lib/meta-provider";
 import {db} from "../src/lib/db";
+import {prepareProject} from "../src/lib/preparation-client";
 import {randomUUID} from "node:crypto";
 import {PATCH as updatePlanDetection} from "../src/app/api/plan-detections/[id]/route";
 import {PATCH as updateFinding} from "../src/app/api/findings/[id]/route";
@@ -19,6 +20,12 @@ test("classifies plan, nameplate, specs and exterior file hints",()=>{
 test("workflow steps are explicit, ordered, and independently observable",()=>{
  assert.deepEqual(stages,["Upload validation","File classification","Text & visual extraction","Evidence grouping","Product research","Plan interpretation","Consistency checks","Dossier update"]);
 });
+test("one-click preparation creates its report after partial analysis failures",async()=>{
+ const calls:string[]=[],progress:string[]=[],files=[{id:"good",filename:"unit.jpg"},{id:"bad",filename:"plate.jpg"}];
+ const fetcher=(async(input:string|URL|Request)=>{const url=String(input);calls.push(url);if(url.endsWith("/process")&&calls.filter(x=>x.endsWith("/process")).length===2)return new Response(JSON.stringify({error:"Meta unavailable"}),{status:503});if(url.endsWith("/report"))return new Response(JSON.stringify({overview:{evidenceFiles:2}}),{status:200});return new Response("{}",{status:200})}) as typeof fetch;
+ const result=await prepareProject<{overview:{evidenceFiles:number}}>("project",files,fetcher,(index,_total,file)=>progress.push(`${index}:${file.filename}`));
+ assert.deepEqual(calls,["/api/projects/project/process","/api/projects/project/process","/api/projects/project/report"]);assert.deepEqual(progress,["1:unit.jpg","2:plate.jpg"]);assert.equal(result.report.overview.evidenceFiles,2);assert.deepEqual(result.failures,[{filename:"plate.jpg",reason:"Meta unavailable"}]);
+});
 test("schema rejects malformed confidence and unknown finding kind",()=>{
  const schema=z.object({category:z.enum(["equipment","nameplate","technical_document","plan","building","unknown"]),findings:z.array(z.object({title:z.string().min(1).max(160),detail:z.string().max(1200),kind:z.enum(["equipment","technical","plan","observation"]),confidence:z.number().min(0).max(1)})).max(12)});
  assert.equal(schema.safeParse({category:"plan",findings:[{title:"Room zone",detail:"Unverified",kind:"plan",confidence:.6}]}).success,true);
@@ -28,7 +35,10 @@ test("Meta structured response validation rejects malformed and out-of-page dete
  const good={category:"plan",findings:[],detections:[{pageNumber:2,label:"Workshop",x:.1,y:.2,width:.4,height:.5,confidence:.73}]};
  assert.equal(analysisSchema.safeParse(good).success,true);assert.equal(analysisSchema.safeParse({...good,detections:[{...good.detections[0],x:.8}]}).success,false);
  assert.throws(()=>parseAnalysis("not-json"),/invalid JSON/i);assert.throws(()=>extractOutputText({status:"incomplete",output:[]}),/incomplete/i);
- const request=buildAnalysisRequest("catalog-verified-model",[{type:"input_text",text:"fixture"}]);assert.equal((request.text.format as any).type,"json_schema");assert.equal((request.text.format as any).strict,true);assert.equal((request.text.format as any).name,"building_evidence_analysis");
+  const request=buildAnalysisRequest("muse-spark-1.3",[{type:"input_text",text:"fixture"}]);assert.equal((request.text.format as any).type,"json_schema");assert.equal((request.text.format as any).strict,true);assert.equal((request.text.format as any).name,"building_evidence_analysis");assert.deepEqual(request.reasoning,{effort:"medium"});assert.equal(request.max_output_tokens,5000);
+ });
+test("Meta reasoning effort uses documented controls and limits max to verified model versions",()=>{
+ assert.equal(resolveReasoningEffort("muse-spark-1.3","high"),"high");assert.equal(resolveReasoningEffort("muse-wonder-1.0","max"),"max");assert.throws(()=>resolveReasoningEffort("muse-spark-1.3-contributor","max"),/not eligible/i);assert.throws(()=>resolveReasoningEffort("muse-spark-1.2","max"),/not eligible/i);assert.throws(()=>resolveReasoningEffort("muse-spark-1.3","none"),/must be low/i);
 });
 test("Meta model capability check rejects unavailable models and incompatible modality metadata",async()=>{
  const unavailable=async()=>new Response(JSON.stringify({data:[]}),{status:200,headers:{"content-type":"application/json"}});
